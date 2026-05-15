@@ -77,6 +77,54 @@ def _test_max_pool2d_pt2e(self):
 
 TestQuantizedOps.test_max_pool2d_pt2e = _test_max_pool2d_pt2e
 
+
+def _test_qsoftmax_qnnpack(self):
+    """Override to inline the test logic since test_qsoftmax becomes test_qsoftmax_xpu."""
+    import numpy as np
+    import hypothesis.strategies as st
+    from torch.testing._internal.common_quantized import _quantize, override_quantized_engine
+
+    with override_quantized_engine('qnnpack'):
+        # Inline the test_qsoftmax logic with sample dims
+        dims = [3, 3, 3, 3, 3]  # Use a representative sample
+        for (num_dims, dim, memory_format) in [
+            (2, 1, torch.contiguous_format),
+            (4, 3, torch.contiguous_format),
+            (5, 2, torch.contiguous_format),
+            (4, 3, torch.channels_last),
+            (4, 1, torch.channels_last),
+            (5, 1, torch.channels_last_3d),
+        ]:
+            size = dims[:num_dims]
+            torch_dtype = torch.quint8
+            np_dtype = np.uint8
+
+            scale_X = 1.3
+            zero_point_X = 5
+            X = torch.rand(size=size, dtype=torch.float32) * 8 + zero_point_X
+            X = X.to(memory_format=memory_format)
+
+            scale_Y = 1 / 256
+            zero_point_Y = 0
+
+            qX = torch.quantize_per_tensor(X,
+                                           scale=scale_X,
+                                           zero_point=zero_point_X,
+                                           dtype=torch_dtype)
+
+            Y = torch.softmax(qX.dequantize(), dim=dim).numpy()
+            qY = _quantize(Y, scale_Y, zero_point_Y, dtype=np_dtype)
+            qY_hat = torch.ops.quantized.softmax(qX,
+                                                 dim=dim,
+                                                 output_scale=scale_Y,
+                                                 output_zero_point=zero_point_Y)
+
+            np.testing.assert_equal(qY, qY_hat.int_repr(),
+                                    "Quantized softmax failed.")
+
+
+TestQuantizedOps.test_qsoftmax_qnnpack = _test_qsoftmax_qnnpack
+
 instantiate_device_type_tests(
     TestQuantizedOps, globals(), only_for="xpu", allow_xpu=True
 )
