@@ -12,6 +12,8 @@ import itertools
 import torch
 from torch.nn.modules.utils import _pair
 from torch.testing._internal.common_device_type import instantiate_device_type_tests
+from torch.testing._internal.common_quantization import skipIfNoQNNPACK
+from torch.testing._internal.common_quantized import override_quantized_engine
 from torch.testing._internal.common_utils import run_tests, TestCase
 
 try:
@@ -76,6 +78,15 @@ def _test_max_pool2d_pt2e(self):
 
 
 TestQuantizedOps.test_max_pool2d_pt2e = _test_max_pool2d_pt2e
+
+
+@skipIfNoQNNPACK
+def _test_qsoftmax_qnnpack(self):
+    with override_quantized_engine("qnnpack"):
+        self.test_qsoftmax_xpu()
+
+
+TestQuantizedOps.test_qsoftmax_qnnpack = _test_qsoftmax_qnnpack
 
 instantiate_device_type_tests(
     TestQuantizedOps, globals(), only_for="xpu", allow_xpu=True
