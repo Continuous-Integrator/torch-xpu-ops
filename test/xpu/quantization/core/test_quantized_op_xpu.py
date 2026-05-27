@@ -77,9 +77,18 @@ def _test_max_pool2d_pt2e(self):
 
 TestQuantizedOps.test_max_pool2d_pt2e = _test_max_pool2d_pt2e
 
+
+def _test_qsoftmax_wrapper(self, *args, **kwargs):
+    """Wrapper to make test_qsoftmax available for test_qsoftmax_qnnpack."""
+    return self.test_qsoftmax_xpu(*args, **kwargs)
+
+
 instantiate_device_type_tests(
     TestQuantizedOps, globals(), only_for="xpu", allow_xpu=True
 )
+
+# Add wrapper after instantiation so test_qsoftmax_qnnpack can call test_qsoftmax
+TestQuantizedOpsXPU.test_qsoftmax = _test_qsoftmax_wrapper
 
 if __name__ == "__main__":
     TestCase._default_dtype_check_enabled = True
