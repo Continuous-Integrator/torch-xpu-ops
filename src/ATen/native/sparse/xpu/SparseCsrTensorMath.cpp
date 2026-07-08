@@ -16,6 +16,9 @@
 #include <ATen/native/sparse/SparseStubs.h>
 #include <ATen/native/sparse/xpu/sycl/SparseCsrTensorAddKernels.h>
 #include <ATen/native/sparse/xpu/sycl/SparseCsrTensorMathKernels.h>
+#if defined(USE_ONEMKL_XPU)
+#include <ATen/native/xpu/mkl/SparseBlas.h>
+#endif // USE_ONEMKL_XPU
 #include <ATen/ops/_convert_indices_from_coo_to_csr_native.h>
 #include <ATen/ops/_convert_indices_from_csr_to_coo_native.h>
 
@@ -508,6 +511,16 @@ std::tuple<Tensor&, Tensor&> triangular_solve_out_sparse_csr_xpu(
     X.fill_(NAN);
     return std::tuple<Tensor&, Tensor&>(X, clone_A);
   }
+
+#if defined(USE_ONEMKL_XPU)
+  if (A.scalar_type() == ScalarType::Float ||
+      A.scalar_type() == ScalarType::Double) {
+    xpu::triangular_solve_sparse_csr_mkl(A, B, X, upper, transpose, unitriangular);
+    return std::tuple<Tensor&, Tensor&>(X, clone_A);
+  }
+#endif // USE_ONEMKL_XPU
+
+  // Fallback: convert to dense and use the dense solver.
   Tensor temp_clone_A = at::empty({0}, A.options().layout(at::kStrided));
   at::triangular_solve_out(
       X, temp_clone_A, B, A.to_dense(), upper, transpose, unitriangular);
