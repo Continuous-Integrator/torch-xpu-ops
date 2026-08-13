@@ -9,6 +9,7 @@
 import os
 import sys
 
+from skip_list_bmg import skip_dict as skip_dict_bmg
 from skip_list_common import skip_dict
 from skip_list_win import skip_dict as skip_dict_win
 from skip_list_win_bmg import skip_dict as skip_dict_win_bmg
@@ -19,6 +20,8 @@ IS_WINDOWS = sys.platform == "win32"
 
 for key in skip_dict:
     skip_list = skip_dict[key]
+    if not IS_WINDOWS and key in skip_dict_bmg:
+        skip_list += skip_dict_bmg[key]
     if IS_WINDOWS and key in skip_dict_win:
         skip_list += skip_dict_win[key]
     if IS_WINDOWS and key in skip_dict_win_bmg:
