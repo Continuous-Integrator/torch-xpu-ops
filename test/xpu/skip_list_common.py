@@ -145,7 +145,12 @@ skip_dict = {
         # https://github.com/intel/torch-xpu-ops/issues/2285
         "_efficient_attention_forward",
     ),
-    "test_modules_xpu.py": None,
+    "test_modules_xpu.py": (
+        # SDPA backward derivative (second-order gradients) not implemented
+        # Similar to upstream skip on CPU: torch/testing/_internal/common_modules.py
+        # See: https://github.com/pytorch/pytorch/blob/main/torch/testing/_internal/common_modules.py#L4887-4889
+        "test_gradgrad_nn_Transformer",
+    ),
     f"{PYTORCH_TEST_DIR}/test_native_functions.py": None,
     "test_native_mha_xpu.py": None,
     "test_nn_xpu.py": (
