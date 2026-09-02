@@ -185,18 +185,18 @@ static inline int get_wgroup_size(
 // this method help to divide the computation resource for spatial_softmax
 template <int vec_size, class KernelClass>
 static inline void get_wgroup_size_spatial(
-    int bs,
-    int dim_size,
-    int inner_size,
-    int& GroupSize,
-    int& GroupRow) {
-  int maxWGSize = syclMaxWorkGroupSize<KernelClass>();
-  int total_resource = syclMaxWorkItemsPerTile();
+    int64_t bs,
+    int64_t dim_size,
+    int64_t inner_size,
+    int64_t& GroupSize,
+    int64_t& GroupRow) {
+  int64_t maxWGSize = syclMaxWorkGroupSize<KernelClass>();
+  int64_t total_resource = syclMaxWorkItemsPerTile();
 
   // set the GroupSize smaller to ensure larger group number
   // smaller GroupSize is friendly to the tail case
-  GroupSize = int((inner_size + vec_size - 1) / vec_size);
-  GroupSize = std::min(GroupSize, SIMD32);
+  GroupSize = int64_t((inner_size + vec_size - 1) / vec_size);
+  GroupSize = std::min(GroupSize, int64_t(SIMD32));
   auto local_group_num = (inner_size + GroupSize - 1) / GroupSize;
 
   // enlarge the GroupRow to occupy all the computation resource
@@ -207,7 +207,7 @@ static inline void get_wgroup_size_spatial(
     if (GroupRow * SIMD32 == maxWGSize)
       break;
   }
-  GroupRow = std::min(GroupRow, int(dim_size));
+  GroupRow = std::min(GroupRow, dim_size);
 }
 
 template <
@@ -706,7 +706,7 @@ template <
 void softmax_forward_kernel(
     const inscalar_t* in_data,
     outscalar_t* out_data,
-    int dim_size,
+    int64_t dim_size,
     int64_t outer_size) {
   using vec_t = at::native::memory::aligned_vector<inscalar_t, vec_size>;
   constexpr int align_bytes = alignof(vec_t);
@@ -721,9 +721,9 @@ void softmax_forward_kernel(
       align_bytes,
       is_safe_softmax>;
 
-  int local_size = std::min(
+  int64_t local_size = std::min(
       (dim_size + vec_size - 1) / vec_size,
-      int(syclMaxWorkGroupSize<KernelClass>()));
+      int64_t(syclMaxWorkGroupSize<KernelClass>()));
   int64_t local_range{local_size};
   int64_t global_range{local_size * outer_size};
 
@@ -914,9 +914,9 @@ template <
 void spatial_softmax_forward(
     const inscalar_t* in_data,
     outscalar_t* out_data,
-    int dim_size,
-    int inner_size,
-    int outer_size) {
+    int64_t dim_size,
+    int64_t inner_size,
+    int64_t outer_size) {
   using vec_t = at::native::memory::aligned_vector<inscalar_t, vec_size>;
   using KernelClass = SpatialSoftmaxForwardKernelFunctor<
       vec_size,
@@ -929,10 +929,10 @@ void spatial_softmax_forward(
       is_safe_softmax,
       is_same_dtype>;
 
-  int local_size, block_row;
+  int64_t local_size, block_row;
   get_wgroup_size_spatial<vec_size, KernelClass>(
       outer_size, dim_size, inner_size, local_size, block_row);
-  int group_num =
+  int64_t group_num =
       (inner_size + local_size * vec_size - 1) / (local_size * vec_size);
   sycl::range<3> global_range{
       (size_t)outer_size, (size_t)block_row, (size_t)(group_num * local_size)};
@@ -1531,9 +1531,9 @@ void spatial_softmax_backward_kernel(
     inscalar_t* gradInput,
     const outscalar_t* output,
     const outscalar_t* gradOutput,
-    int dim_size,
-    int inner_size,
-    int outer_size) {
+    int64_t dim_size,
+    int64_t inner_size,
+    int64_t outer_size) {
   using vec_t = at::native::memory::aligned_vector<outscalar_t, vec_size>;
   using KernelClass = SpatialSoftmaxBackwardKernelFunctor<
       vec_size,
@@ -1544,7 +1544,7 @@ void spatial_softmax_backward_kernel(
       vec_t,
       is_same_dtype>;
 
-  int local_size, block_row;
+  int64_t local_size, block_row;
   get_wgroup_size_spatial<vec_size, KernelClass>(
       outer_size, dim_size, inner_size, local_size, block_row);
   int group_num =
