@@ -14105,7 +14105,13 @@ class TestNNDeviceType(NNTestCase):
 
     @onlyOn(["cuda", "xpu"])
     @dtypes(torch.float, torch.half)
-    @largeTensorTest("20GB")
+    @largeTensorTest("20GB", "cuda")
+    # The float32 case peaks around 24-25GB in practice (input + upcast
+    # output + grad, plus allocator overhead on the 64-bit-indexing path),
+    # which leaves no margin on a 24GB XPU card (e.g. BMG) even though "20GB"
+    # of free memory was available when the test started. See
+    # https://github.com/intel/torch-xpu-ops/issues/4183.
+    @largeTensorTest("32GB", "xpu")
     @largeTensorTest("64GB", "cpu")
     def test_warp_softmax_64bit_indexing(self, device, dtype):
         def run_test(*shape):
