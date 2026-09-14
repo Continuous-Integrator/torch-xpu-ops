@@ -396,6 +396,14 @@ skip_dict = {
     f"{PYTORCH_TEST_DIR}/dynamo/test_dynamic_shapes.py": (
         # Worker crash on BMG; no dedicated tracking issue yet
         "test_torch_size_tensor_index_scalar_constant_dynamic_shapes",
+        # Flaky, device-independent: this suite enables
+        # fx_config.check_shape_env_recorded_events, which replays the
+        # ShapeEnv event log and asserts the replayed guards equal the live
+        # ones. Reproduces a duplicated guard (~1/19 runs here, isolated
+        # single-test invocations) that is a ShapeEnv record/replay
+        # nondeterminism unrelated to any XPU op; see intel/torch-xpu-ops
+        # issue 4825 / xpu-workspace issue 194.
+        "test_autocast_sdpa_dynamic_shapes",
     ),
     "dynamo/test_export_xpu.py": None,
     "dynamo/test_logging_xpu.py": None,
