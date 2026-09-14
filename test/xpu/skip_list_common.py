@@ -374,7 +374,19 @@ skip_dict = {
     "dynamo/test_misc_xpu.py": None,
     "dynamo/test_regional_inductor_xpu.py": None,
     "dynamo/test_streams_xpu.py": None,
-    "dynamo/test_wrap_inductor_compiled_regions_xpu.py": None,
+    "dynamo/test_wrap_inductor_compiled_regions_xpu.py": (
+        # Flaky/nondeterministic, not device-specific: the test relies on the
+        # on-disk FxGraphCache/AOTAutogradCache directory (keyed only by OS
+        # username, see torch/_inductor/runtime/cache_dir_utils.py) turning a
+        # config change into a fresh cache miss. That directory is shared
+        # with any other process on the same CI runner, so a sibling process
+        # (e.g. after a pytest-xdist worker restart) racing to populate the
+        # same (fn, shape, dtype, device, config) key can turn the expected
+        # miss into a hit. Reproduces intermittently in CI, passes reliably
+        # in isolation (4/4 local runs, serial and full-file).
+        # https://github.com/intel/torch-xpu-ops/issues/4810
+        "test_wrap_config_affects_cache_key",
+    ),
     "export/test_export_training_ir_to_run_decomp_xpu.py": None,
     "test_basic_torch_np_xpu.py": None,
     "test_fx_xpu.py": None,
