@@ -29,6 +29,7 @@ DISABLE_RETURN_TYPE_WARNING_BEGIN
 #include <ATen/native/xpu/sycl/SortingKernels.h>
 #include <ATen/native/xpu/sycl/pstl/PSTLFunctions.h>
 #include <ATen/ops/_sparse_coo_tensor_with_dims_and_tensors.h>
+#include <ATen/ops/aminmax.h>
 #include <ATen/ops/arange.h>
 #include <ATen/ops/empty.h>
 #include <ATen/ops/gather.h>
@@ -57,6 +58,33 @@ void index_kernel(
     TensorIteratorBase& iter,
     IntArrayRef index_size,
     IntArrayRef index_stride) {
+  // Host-side bounds check. IndexKernelFunctor (Indexing.h) validates each
+  // index in-kernel with SYCL_KERNEL_ASSERT, matching CUDA's device-side
+  // check. On CUDA an assert failure is surfaced as a catchable
+  // AcceleratorError on the next CUDA API call; on XPU the SYCL runtime
+  // instead prints the assertion and calls abort(), killing the whole
+  // process (SIGABRT) with nothing catchable. Check here, as CPU's
+  // Indexer::get (IndexKernelUtils.h) does inline, so advanced indexing
+  // ("x[idx]") with an out-of-range index raises a catchable IndexError
+  // on XPU too.
+  for (const auto i : c10::irange(index_size.size())) {
+    const Tensor& index = iter.tensor(i + 2);
+    if (index.numel() == 0) {
+      continue;
+    }
+    auto [idx_min, idx_max] = at::aminmax(index);
+    const int64_t size = index_size[i];
+    const int64_t lo = idx_min.item<int64_t>();
+    const int64_t hi = idx_max.item<int64_t>();
+    TORCH_CHECK_INDEX(
+        lo >= -size && hi < size,
+        "index ",
+        (lo < -size ? lo : hi),
+        " is out of bounds for dimension ",
+        i,
+        " with size ",
+        size);
+  }
   AT_DISPATCH_V2(
       iter.dtype(),
       "index_xpu",
